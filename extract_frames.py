@@ -80,7 +80,7 @@ def extract_frames_from_videos(input_folder_path):
 
                 # Construct the output filename
                 # Format: [VideoFileName]_frame_000001.jpg
-                image_filename = f"{file_basename}_frame_{frame_number:06d}.jpg"
+                image_filename = f"{file_basename}_frame_{frame_number:06d}.png"
 
                 # Construct the full path to save the image
                 output_image_path = os.path.join(output_folder_path, image_filename)
