@@ -16,6 +16,10 @@ The script runs fully interactively: when you start it, it asks whether you want
 * **Clean and organized output:** Automatically creates subfolders for frames and cropped results.
 * **Interactive use:** No command-line flags required — just answer simple prompts when you run the script.
 * **Warning suppression:** Automatically hides irrelevant library warnings (like `timm` or PyTorch).
+* **Extract every _n_-th frame** interactively (default **1** = every frame)  
+* **Resume + gap-fill**: only missing frames are extracted (no duplicates)  
+* **Optional cleanup** to remove extracted frames after cropping  
+* **Automatic local import** if `GroundingDINO/` folder is next to the script
 
 ---
 
@@ -43,6 +47,7 @@ pip install opencv-python tqdm
 ```
 
 If you also want to use **GroundingDINO cropping**, install its dependencies as well:
+
 
 #### a) Clone GroundingDINO inside your repository
 ```bash
@@ -87,16 +92,22 @@ You can run the script from either the **terminal** or any **Python IDE** (like 
    ```
 
 3. Follow the prompts:
-   ```
-   === 🎥 Frame Extraction & Optional GroundingDINO Cropping ===
-   Enter the path to your video folder: D:\Videos\oranges
-   Enter the output directory: D:\orange_job
-   Do you want to use GroundingDINO for object localization and cropping? (y/n): y
-   Enter your text prompt (e.g., 'orange'): orange
-   Enter box threshold [default 0.35]:
-   Enter text threshold [default 0.25]:
-   Run on CPU or CUDA? [cpu/cuda, default=cpu]: cuda
-   ```
+    ```
+    === 🎥 Frame Extraction & Optional GroundingDINO Cropping ===
+    Enter the path to your video folder: C:\path\to\videos
+    Enter the output directory: C:\path\to\output
+
+    📸 Frame extraction frequency:
+    Enter how often to extract frames (1 = every frame, 2 = every 2nd, 3 = every 3rd, etc.)
+    Extract every n-th frame [default=1]: 15
+
+    Do you want to use GroundingDINO for object localization and cropping? (y/n): y
+    Keep the extracted frame images after cropping? (y/N): n
+    Enter your text prompt (e.g., 'orange'): orange
+    Enter box threshold [default 0.35]:
+    Enter text threshold [default 0.25]:
+    Run on CPU or CUDA? [cpu/cuda, default=cpu]: cuda
+    ```
 
 4. When complete, you’ll be asked if you want to delete the raw frames:
    ```
@@ -159,6 +170,27 @@ When running GroundingDINO mode, you’ll be prompted to enter:
 | **Box Threshold** | Minimum confidence for object bounding boxes | `0.35` |
 | **Text Threshold** | Minimum confidence for text–object match | `0.25` |
 | **Device** | Compute device: `"cpu"` or `"cuda"` | `"cpu"` |
+
+---
+
+---
+
+## 🔧 Notes
+
+- **File naming** must stay as `<base>_frame_%06d.png` for resume/gap-fill to work  
+- **Same parameters** (`every_nth`, `image_ext`) must be used when resuming  
+- The cropping step only processes existing frames  
+- Supported video formats: `.mp4`, `.avi`, `.mov`, `.mkv`, `.flv`, `.wmv`, `.mpeg`, `.mpg`  
+
+---
+
+## 🧹 Optional Cleanup
+
+    After successful cropping, you can delete extracted frames automatically:
+    ```
+    Keep the extracted frame images after cropping? (y/N): n
+    ```
+    This removes the entire `frames/` directory once cropped images exist.
 
 ---
 
