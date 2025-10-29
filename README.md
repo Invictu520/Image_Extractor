@@ -26,7 +26,7 @@ This script uses **OpenCV** to efficiently process video files.
 
 1.  **Clone the repository (or download `extract_frames.py`):**
     ```bash
-    git clone [https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git](https://github.com/YOUR_USERNAME/YOUR_REPOSITORY.git)
+    git clone https://github.com/Invictu520/Image_Extractor.git
     cd YOUR_REPOSITORY
     ```
 
