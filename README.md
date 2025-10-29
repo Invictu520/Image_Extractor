@@ -76,13 +76,15 @@ If you are using an Integrated Development Environment (IDE) like **VS Code**, *
 Here is how the script organizes your files.
 
 **Before:**
+```bash
 /User/Project/
 └── MyVideos/
     ├── cool_video_1.mp4
     └── holiday_footage.mov
-
+```
 
 **After running the script:**
+```bash
 /User/Project/
 ├── MyVideos/
 │   ├── cool_video_1.mp4
@@ -95,3 +97,4 @@ Here is how the script organizes your files.
     ├── holiday_footage_frame_000000.jpg
     ├── holiday_footage_frame_000001.jpg
     └── ...
+```
