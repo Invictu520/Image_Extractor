@@ -39,18 +39,31 @@ This script uses **OpenCV** to efficiently process video files.
 
 ## ▶️ How to Use
 
-1.  Run the script from your terminal:
+### 💻 Using the Terminal (Recommended)
+
+1.  **Navigate to the Script Directory:** Open your terminal or command prompt and use the `cd` (change directory) command to go to the folder where you saved `extract_frames.py`.
+
+    *Example:* If you saved the script in a folder called `video-tools` on your desktop:
+    ```bash
+    cd ~/Desktop/video-tools
+    ```
+
+2.  **Run the Script:** Execute the script using Python:
     ```bash
     python extract_frames.py
     ```
 
-2.  When prompted, provide the full path to the folder containing your videos. You can often drag and drop the folder onto the terminal window to paste the path.
+3.  **Provide the Path:** When prompted, enter the **full path** to the folder that contains your source video files. (You can often drag and drop the folder onto the terminal to paste the path).
 
     ```
     Enter the full path to your video folder: /Users/yourname/Desktop/MyVideos
     ```
 
-3.  The script will scan the folder, process all found videos, and save the extracted frames into the `Extracted_Images` folder.
+4.  **Completion:** The script will scan the folder, process all found videos, and save the extracted frames into the `Extracted_Images` folder.
+
+### ✍️ Using a Python Editor (Alternative)
+
+If you are using an Integrated Development Environment (IDE) like **VS Code**, **PyCharm**, or **Spyder**, you can simply open the `extract_frames.py` file and use the editor's built-in **Run** command (usually a green triangle button). The script will prompt for the folder path in the editor's console or terminal window.
 
 ---
 
