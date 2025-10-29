@@ -85,7 +85,7 @@ def extract_frames_from_videos(input_folder_path):
                 # Construct the full path to save the image
                 output_image_path = os.path.join(output_folder_path, image_filename)
 
-                # Save the 'frame' as a JPEG image
+                # Save the 'frame' as a PNG image
                 cv2.imwrite(output_image_path, frame)
 
                 frame_number += 1
