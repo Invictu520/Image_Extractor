@@ -34,7 +34,11 @@ This script uses **OpenCV** to efficiently process video files.
     ```bash
     pip install opencv-python
     ```
-
+    or in case you use conda
+    
+    ```bash
+    conda install -c conda-forge opencv
+    ```
 ---
 
 ## ▶️ How to Use
