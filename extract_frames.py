@@ -1,112 +1,173 @@
-import cv2  # OpenCV library for video processing
-import os  # For creating folders and handling file paths
-import sys  # For exiting the script if the folder is invalid
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import cv2
+from tqdm import tqdm
+import shutil
+import warnings
+
+# Suppress noisy library warnings before user input
+warnings.filterwarnings("ignore", category=FutureWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
+
+# Try importing GroundingDINO (optional dependency)
+try:
+    from groundingdino.util.inference import load_model, load_image, predict
+except Exception:
+    load_model = None
+    load_image = None
+    predict = None
 
 
-def extract_frames_from_videos(input_folder_path):
-    """
-    Scans a folder for video files, extracts all frames, and saves them
-    to a new folder named 'Extracted_Images' at the same level.
-    """
+VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mpeg', '.mpg'}
 
-    # --- 1. Define Video Formats ---
-    # A set of common video file extensions
-    VIDEO_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.mpeg', '.mpg'}
 
-    # --- 2. Validate Input Folder ---
-    # Check if the provided path is a valid directory
-    if not os.path.isdir(input_folder_path):
-        print(f"Error: Input path '{input_folder_path}' is not a valid directory.")
-        sys.exit(1)  # Exit the script
+def extract_frames(input_videos_dir, output_frames_dir, image_ext="png", every_nth=1, per_video_subfolders=True):
+    """Extract frames from all videos in a folder."""
+    os.makedirs(output_frames_dir, exist_ok=True)
+    video_files = [f for f in os.listdir(input_videos_dir) if os.path.splitext(f)[1].lower() in VIDEO_EXTENSIONS]
+    if not video_files:
+        print("No videos found.")
+        return
+    for filename in tqdm(video_files, desc="Extracting frames"):
+        base, _ = os.path.splitext(filename)
+        video_path = os.path.join(input_videos_dir, filename)
+        cap = cv2.VideoCapture(video_path)
+        if not cap.isOpened():
+            print(f"Could not open {video_path}")
+            continue
+        out_dir = os.path.join(output_frames_dir, base) if per_video_subfolders else output_frames_dir
+        os.makedirs(out_dir, exist_ok=True)
+        frame_idx = 0
+        saved_idx = 0
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                break
+            if every_nth <= 1 or (frame_idx % every_nth == 0):
+                out_path = os.path.join(out_dir, f"{base}_frame_{saved_idx:06d}.{image_ext}")
+                cv2.imwrite(out_path, frame)
+                saved_idx += 1
+            frame_idx += 1
+        cap.release()
+    print(f"✅ Frames extracted to {output_frames_dir}")
 
-    # Get the absolute path for consistency
-    input_folder_path = os.path.abspath(input_folder_path)
 
-    # --- 3. Create Output Folder ---
-    # Get the parent directory of the input folder
-    # e.g., if input is '/User/Projects/MyVideos', parent is '/User/Projects'
-    parent_directory = os.path.dirname(input_folder_path)
-
-    # Define the path for the new 'Extracted_Images' folder
-    output_folder_path = os.path.join(parent_directory, "Extracted_Images")
-
-    # Create the folder if it doesn't already exist
-    try:
-        if not os.path.exists(output_folder_path):
-            os.makedirs(output_folder_path)
-            print(f"Successfully created output folder: {output_folder_path}")
-        else:
-            print(f"Output folder already exists: {output_folder_path}")
-    except OSError as e:
-        print(f"Error creating directory '{output_folder_path}': {e}")
+def ensure_dino():
+    """Check if GroundingDINO is installed."""
+    if load_model is None or load_image is None or predict is None:
+        print("❌ GroundingDINO not available — please install or check imports.")
         sys.exit(1)
 
-    # --- 4. Process Videos ---
-    print(f"\nScanning for videos in: {input_folder_path}...")
 
-    processed_video_count = 0
+def run_dino_crop(images_root, crops_out,
+                  caption="orange", box_threshold=0.35, text_threshold=0.25,
+                  model_config="GroundingDINO/groundingdino/config/GroundingDINO_SwinT_OGC.py",
+                  model_weights="GroundingDINO/weights/groundingdino_swint_ogc.pth",
+                  device="cpu"):
+    """Run GroundingDINO detection and crop around largest detected object."""
+    ensure_dino()
+    os.makedirs(crops_out, exist_ok=True)
 
-    # Loop through every file in the input folder
-    for filename in os.listdir(input_folder_path):
-        # Get the file's name (without extension) and its extension
-        file_basename, file_extension = os.path.splitext(filename)
+    print("\n🔧 Loading GroundingDINO model...")
+    model = load_model(model_config, model_weights)
 
-        # Check if the file's extension is in our list of video formats
-        if file_extension.lower() in VIDEO_EXTENSIONS:
-            processed_video_count += 1
-            print(f"\n--- Processing video: {filename} ---")
+    image_paths = []
+    for root, _, files in os.walk(images_root):
+        for f in files:
+            if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                image_paths.append(os.path.join(root, f))
+    if not image_paths:
+        print("No images found for DINO.")
+        return
 
-            # Construct the full path to the video file
-            video_path = os.path.join(input_folder_path, filename)
+    for fpath in tqdm(image_paths, desc="Cropping with GroundingDINO"):
+        try:
+            _, img_tensor = load_image(fpath)
+        except Exception as e:
+            print(f"Failed to load {fpath}: {e}")
+            continue
 
-            # Open the video file with OpenCV
-            video_capture = cv2.VideoCapture(video_path)
+        boxes, _, _ = predict(
+            model=model,
+            image=img_tensor,
+            device=device,
+            caption=caption,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold
+        )
 
-            if not video_capture.isOpened():
-                print(f"Error: Could not open video file {video_path}")
-                continue  # Skip to the next file
+        bgr = cv2.imread(fpath)
+        if bgr is None:
+            continue
+        H, W = bgr.shape[:2]
+        if len(boxes) == 0:
+            continue
 
-            # --- 5. Extract and Save Frames ---
-            frame_number = 0
-            while True:
-                # Read one frame from the video
-                # 'success' is a boolean (True/False)
-                # 'frame' is the image data (a NumPy array)
-                success, frame = video_capture.read()
+        # Select the largest detection box
+        areas = [(b[2] * b[3]) for b in boxes]
+        idx = int(max(range(len(areas)), key=lambda i: areas[i]))
+        cx, cy, w, h = boxes[idx].tolist()
+        x1 = int((cx - w / 2) * W)
+        y1 = int((cy - h / 2) * H)
+        x2 = int((cx + w / 2) * W)
+        y2 = int((cy + h / 2) * H)
+        x1, y1, x2, y2 = max(0, x1), max(0, y1), min(W, x2), min(H, y2)
 
-                # If 'success' is False, we have reached the end of the video
-                if not success:
-                    break
+        crop = bgr[y1:y2, x1:x2]
 
-                # Construct the output filename
-                # Format: [VideoFileName]_frame_000001.jpg
-                image_filename = f"{file_basename}_frame_{frame_number:06d}.png"
+        rel = os.path.relpath(fpath, images_root)
+        base = os.path.splitext(os.path.basename(rel))[0]
+        out_dir = os.path.join(crops_out, os.path.dirname(rel))
+        os.makedirs(out_dir, exist_ok=True)
+        crop_path = os.path.join(out_dir, f"{base}.jpg")
+        cv2.imwrite(crop_path, crop)
 
-                # Construct the full path to save the image
-                output_image_path = os.path.join(output_folder_path, image_filename)
+    print(f"\n✅ Cropped images saved to: {crops_out}")
 
-                # Save the 'frame' as a PNG image
-                cv2.imwrite(output_image_path, frame)
 
-                frame_number += 1
+def main():
+    print("=== 🎥 Frame Extraction & Optional GroundingDINO Cropping ===")
+    videos_dir = input("Enter the path to your video folder: ").strip('"').strip("'")
+    out_dir = input("Enter the output directory: ").strip('"').strip("'")
 
-            # Release the video file handle
-            video_capture.release()
-            print(f"Successfully extracted {frame_number} frames from {filename}.")
+    # Ask if user wants to use GroundingDINO
+    use_dino = input("Do you want to use GroundingDINO for object localization and cropping? (y/n): ").strip().lower()
 
-    # --- 6. Final Report ---
-    if processed_video_count == 0:
-        print("\nNo video files found in the specified folder.")
+    frames_dir = os.path.join(out_dir, "frames")
+    extract_frames(videos_dir, frames_dir, image_ext="jpg", every_nth=1)
+
+    if use_dino == "y":
+        # Ask for detection parameters interactively
+        caption = input("Enter your text prompt (e.g., 'orange'): ").strip() or "orange"
+
+        box_threshold_str = input("Enter box threshold [default 0.35]: ").strip()
+        box_threshold = float(box_threshold_str) if box_threshold_str else 0.35
+
+        text_threshold_str = input("Enter text threshold [default 0.25]: ").strip()
+        text_threshold = float(text_threshold_str) if text_threshold_str else 0.25
+
+        device = input("Run on CPU or CUDA? [cpu/cuda, default=cpu]: ").strip().lower() or "cpu"
+
+        crops_dir = os.path.join(out_dir, "cropped")
+
+        run_dino_crop(
+            frames_dir, crops_dir,
+            caption=caption,
+            box_threshold=box_threshold,
+            text_threshold=text_threshold,
+            device=device
+        )
+
+        cleanup = input("Delete raw frames after cropping? (y/n): ").strip().lower()
+        if cleanup == "y":
+            shutil.rmtree(frames_dir, ignore_errors=True)
+            print("🧹 Raw frames deleted.")
     else:
-        print(f"\n✅ All done. Processed {processed_video_count} video(s).")
+        print("Skipping DINO detection — only frames extracted.")
 
 
-# --- Run the script ---
 if __name__ == "__main__":
-    # Prompt the user to enter the path to their video folder
-    folder_path = input("Enter the full path to your video folder: ")
-
-    # Clean up the path (removes extra quotes or spaces)
-    folder_path = folder_path.strip().strip('"').strip("'")
-
-    extract_frames_from_videos(folder_path)
+    main()
